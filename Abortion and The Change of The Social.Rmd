@@ -1,5 +1,5 @@
 ---
-title: "What the data says about abortion in The United States."
+title: "Abortion in The United States."
 author: "Nhan Nguyen"
 date: "`r Sys.Date()`"
 output:
@@ -24,8 +24,7 @@ knitr::opts_chunk$set(echo = TRUE)
   
   - After the Supreme Court’s June 2022 decision to end the constitutional right to abortion, 62% of U.S. adults said the practice should be legal.
   
-    - We will take a look at data on the number of legal abortions that take place in the United States each year – and other related measures – by the Guttmacher Institute, which have tracked these patterns for several decades. The latest data from both organizations is from 2020, and also some collected data that provided by the Centers for Disease Control and Prevention (CDC). 
-
+    - We will take a look at data on the number of legal abortions that take place in the United States each year – and other related measures – made by the Guttmacher Institute, which have tracked these patterns for several decades. The latest data is 2017(an update organizations was made in 2020).
 # Data Resource
 
    - Data taking from the work of The Guttmacher Institute.
@@ -82,11 +81,22 @@ library(stringr)
 library(ggplot2)
 ```
 # So, what are the data sets we will working with?
+- Main data set to focus on is Guttmacher dataset.
+
+- In this data set, we have all the data about pregnancy rate, birth rate, abortion rate, ratio, and number of abortions across the country.
+
+- All of them was separated into some small group by age: Lower than 15, 15-17, 18-19, 15-19, lower than 20, 20-24, 25-29, 30-34, 35-39, and over 40. Rate scale is counting by 1/1000.
+
+- Since some of the data have some gap between each year since some states don't share it, I will pick some age groups that have the complete data thorough time to work on it.
+
+- The group I choose to work on it is: age lower than 15, lower than 20, 20-24, 25-29, 30-34, 35-39, and over 40
+
+
+# 
 ```{r}
-abortion_data_UnS <- read.csv(
+abortion_data_U.S <- read.csv(
 "https://raw.githubusercontent.com/nhanizDee/R--for-data-science/main/NationalAndStatePregnancy_PublicUse.csv")
 
-abortion_data_UnS %>% glimpse(n.max = 6, width = F)
 ```
 
 # 
@@ -95,76 +105,148 @@ population_data <- read.csv('State_Population.csv')
 
 texas_population <- read.csv('Texas Population.csv')
 
-glimpse(population_data)
-glimpse(texas_population)
 
+# Clean and convert population column
+population_data$Population <- as.numeric(gsub(",", "", population_data$Population))
+texas_population$Population <- as.numeric(gsub(",", "", texas_population$Population))
 ```
 
 # How many abortions are there in the U.S. each year?
 - An exact answer is hard to come by. 
   
-  - The CDC and the Guttmacher Institute each try to measure this, but they use different methods and publish different figures.
-
-- The CDC compiles figures voluntarily reported by the central health agencies of the vast majority of states.
-
-- Its latest totals do not include figures from California, Maryland or New Hampshire.
-
-- On the other hand, The Guttmacher Institute compiles its figures after contacting every known provider of abortions – clinics, hospitals and physicians’ offices – in the country.
-
- - Guttmacher’s figures are higher than the CDC’s in part because it includes data from all 50 states.
+- The Guttmacher Institute compiles data figures after contacting every known provider of abortions – clinics, hospitals and physicians’ offices – in the country.
+ 
  
 # Let's first take a look at the number in the whole country by time:
 
-```{r echo=FALSE, out.width = "40%", fig.align = "center"}
-knitr::include_graphics("Screenshot 2023-04-30 055957.png")
-```
-
-
-# After that, let working on some specific states to see how it is going around us
-
-- Suppose we want to know how the data changes in the most populous and least populated states according to the data we have.
-
-Take a first look about population, here is the top 6 of highest and lowest 
-
-```{r}
-top_6_population <- population_data %>% filter(Ranked < 4 | Ranked > 45) %>%
-  select('Ranked','State.Name', 'Population')
-
-top_6_population
-```
-
-
 ```{r echo = FALSE}
 # Get the current row names of the data frame
-old_col_names <- colnames(abortion_data_UnS)
+old_col_names <- colnames(abortion_data_U.S)
 
 # Replace the "abortionrate" prefix with "rate_"
 new_col_names <- gsub("abortionrate", "rate_", old_col_names)
 
 # Set the new row names for the data frame
-colnames(abortion_data_UnS) <- new_col_names
+colnames(abortion_data_U.S) <- new_col_names
+
 ```
-# Let's take a look about the higest population state we have here- California:
+
+```{r echo = FALSE}
+old_col_names2 <- colnames(abortion_data_U.S)
+# Replace the "abortions" prefix with "rate_"
+new_col_names2 <- gsub("abortions", "case_", old_col_names2)
+
+# Set the new row names for the data frame
+colnames(abortion_data_U.S) <- new_col_names2
+
+```
+
 
 ```{r, echo=FALSE, warning=FALSE}
 
-CA_abortion_data <- abortion_data_UnS %>% filter(state == "CA") %>%  
-  select(Year = year, rate_lt15, rate_lt20, rate_3034, rate_40plus)
+US_abortion_data_rate <- abortion_data_U.S %>%
+  filter(state == 'US') %>% 
+  select(Year= year, rate_lt15:rate_40plus)
+
+US_abortion_data_case <- abortion_data_U.S %>%
+  filter(state == 'US') %>% 
+  select(Year= year, case_lt15:case_40plus, case_total)
+
+```
+
+```{r echo=FALSE, warning=FALSE}
+US_abortion_data_case_sub <- US_abortion_data_case %>% 
+  select(-case_total)
+
+# Create the bar graph
+ggplot(data = US_abortion_data_case_sub, aes(x = Year, y = case_lt15 + case_lt20 + case_2024 + case_2529 + case_3034 + case_3539 + case_40plus)) + 
+  geom_bar(stat = "identity", fill = "darkcyan") +
+  labs(title = "Total Number of Abortion Cases by Year in the US over the time",
+       x = "Year",
+       y = "Number of Cases") +
+  theme_minimal()
+```
+
+# After that, let working on some specific states to see how it is going around us
+
+Take a first look about population raking in the US.
+
+```{r echo=FALSE}
+top_15_population <- population_data %>% filter(Ranked < 16) %>%
+  select('Ranked', 'State.Name', 'Population')
+
+top_15_population
+```
+# Then let's see top 10 of abortion case and rate in the US.
+
+```{r echo=FALSE, warning=FALSE}
+top_10_states <- abortion_data_U.S %>%
+  filter(year == 2017, state != "US") %>%
+  select(state, case_total) %>% 
+  arrange(desc(case_total)) %>%
+  head(10)
+
+top_10_states
+```
+
+# So the top ten state with the most abortion case in 2017 is:
+
+|Rank            |   State Name      |
+|:---------------|-------------------|
+|1               |     California    |
+|2               |     New York	     |
+|3               |     Florida       |
+|4               |     Texas         |
+|5               |     New Jersey    |
+|6               |     Illinois      |
+|7               |     Pennsylvania  |
+|8               |     Georgia       |
+|9               |     Mary Land     |
+|10              |     Michigan      |
+
+# How about top 15 by rate
+```{r echo=FALSE}
+top_10_states_rate <- abortion_data_U.S %>%
+  filter(year == 2017, state != "US") %>%
+  select(state, rate_total) %>% 
+  arrange(desc(rate_total)) %>%
+  head(10)
+
+top_10_states_rate
+```
+We again see some familiar names here: California, Texas, Florida, New York, Pennsylvania, Illinois, Georgia, Michigan, and New Jersey.
+
+# After all of the three top we have made, do you wonder why New Jersey has such a high abortion rate since its population is not the highest in the US?
+
+
+- The reasons most frequently appear were that would interfere with a woman's education or jobs.
+
+- Could not afford a baby, or they are just not ready to be a mom. 
+
+- That she did not want to be a single mother or was having relationship problems.
+
+
+
+# A deeper look at abortion data in New Jersey:
+
+```{r, echo=FALSE, warning=FALSE}
+
+NJ_abortion_data <- abortion_data_U.S %>% filter(state == "NJ") %>%  
+  select(Year = year, rate_lt15, rate_lt20, rate_2024, rate_2529, rate_3034, rate_3539, rate_40plus)
 
 ```
 The first graph is a facetted line plot of rate vs. year
 
-```{r CA General Plot, echo=FALSE, warning=FALSE}
+```{r NJ General Plot, echo=FALSE, warning=FALSE}
 # Reshape the data frame into long format
-mydata_long <- tidyr::gather(CA_abortion_data, key = "rate", value = "value", -Year)
+mydata_long <- tidyr::gather(NJ_abortion_data, key = "rate", value = "value", -Year)
 
-# Create a facetted line plot of rate vs. year
+# Create a line plot of rate vs. year
 mydata_long %>% ggplot(aes(x = Year, y = value, color = rate)) +
   geom_line(size = 0.7) +
-  facet_wrap(~rate, scales = "free_y") +
   labs(x = "Year",
        y = "Rate",
-       title = "Abortion Rates of CA over time")
+       title = "Abortion Rates of NJ over time")
 ```
 
 Or, using geom_area to have a better view
@@ -172,79 +254,73 @@ Or, using geom_area to have a better view
 ```{r echo=FALSE, warning=FALSE}
 # Create a area plot of rate
 mydata_long %>% ggplot(aes(x = Year, y = value, fill = rate)) +
-  geom_area(alpha = 0.5) +
+  geom_area(alpha = 0.6) +
   labs(x = "Year",
        y = "Rate",
-        title = "Rates over Time (Stacked)") +
-  scale_fill_brewer(palette = "Set1")
+        title = "Rates over Time (Stacked)")
 
 ```
+# Base on the data form Guttmacher Institute:
 
-#
-The second graph is a facetted histogram of rate, with each rate displayed in its own panel.
+- There was a increase in the abortion rate in New Jersey between 2014 and 2017.
+
+- Case increase from 25.8 to 28.0 abortions per 1,000 women(of reproductive age).
+
+- It represent 5.6% of all abortions in the United States.
 ```{r echo=FALSE, warning=FALSE}
 
+#
+#The second graph is a facetted histogram of rate, with each rate displayed in its own panel.
 # Create a facetted histogram plot of rate
-mydata_long %>% ggplot( aes(x = value, fill = rate)) +
-  geom_histogram(alpha = 0.5, binwidth = 2) +
-  facet_wrap(~rate, scales = "free_y") +
-  labs(x = "Rate",
-       y = "Frequency",
-       title = "Histogram of Rates") +
-  scale_fill_brewer(palette = "Set1")
+#mydata_long %>% ggplot( aes(x = value, fill = rate)) +
+ # geom_histogram(binwidth = 8) +
+ # facet_wrap(~rate) +
+ # labs(title = "Histogram of Rates")
 ```
 
-The main difference between the two graphs is that the line plot displays the change in rate over time, while the histogram displays the distribution of rates at each point in time. 
-
-The line plot provides a visual representation of trends in the data, while the histogram provides a visual representation of the distribution of data.
-
-# How about the state with the lowest population- Wyoming?
-
 ```{r, echo=FALSE, warning=FALSE}
-
-WY_abortion_data <- abortion_data_UnS %>% filter(state == "WY") %>%  
-  select(Year = year, rate_lt15, rate_lt20, rate_3034, rate_40plus)
+# How about the state with the lowest population- Wyoming?
+#WY_abortion_data <- abortion_data_UnS %>% filter(state == "WY") %>%  
+  #select(Year = year, rate_lt15, rate_lt20, rate_3034, rate_40plus)
 
 ```
 
 ```{r WY General Plot, echo=FALSE, warning=FALSE}
 # Reshape the data frame into long format
-mydata_long2 <- tidyr::gather(WY_abortion_data, key = "rate", value = "value", -Year)
-mydata_long2 <- mydata_long2[!is.na(mydata_long$value),]
+#mydata_long2 <- tidyr::gather(WY_abortion_data, key = "rate", value = "value", -Year)
+#mydata_long2 <- mydata_long2[!is.na(mydata_long$value),]
 
 # Create a line graph of year vs. rate
-mydata_long2 %>% ggplot(aes(x = Year, y = value, color = rate)) +
-  geom_line(size = 0.7) +
-  labs(x = "Year",
-       y = "Rate",
-       title = "Abortion Rates of WY over time") +
-  scale_color_brewer(palette = "Set1")
+#mydata_long2 %>% ggplot(aes(x = Year, y = value, color = rate)) +
+ # geom_line(size = 0.7) +
+  #labs(x = "Year",
+       #y = "Rate",
+      # title = "Abortion Rates of WY over time") +
+ # scale_color_brewer(palette = "Set1")
 
 ```
 
 ```{r echo=FALSE, warning=FALSE}
 # Create an area graph of year vs. rate
-mydata_long2 %>% ggplot(aes(x = rate, y = value)) +
-  geom_boxplot(color = "black", fill = "lightblue") +
-  labs(x = "Rate",
-       y = "Value",
-       title = "Distribution of Rates") +
-  scale_x_discrete(labels = c("rate_lt15", "rate_lt20", "rate_3034", "rate_40plus"))
+#mydata_long2 %>% ggplot(aes(x = rate, y = value)) +
+  #geom_boxplot(color = "black", fill = "lightblue") +
+  #labs(x = "Rate",
+     #  y = "Value",
+      # title = "Distribution of Rates")
 
 ```
+
 
 # 
 
 - We are living in Texas, why don't we take a look on the data of Texas!
-
-- However, before jumping into the data, we should know that Texas has banned abortions along with some other states.
 
 - Here is the map of banned states:
 
 ```{r echo=FALSE, out.width = "60%", fig.align = "center"}
 knitr::include_graphics("status-of-abortion-bans-in-the-united-states-as-of-april-25-2023.png")
 ```
-
+Graph provided by KFF.
 For more information, you can take a look on this site:
 
 <a href = "https://www.kff.org/womens-health-policy/dashboard/abortion-in-the-u-s-dashboard/#state" style="color:pink;">
@@ -254,37 +330,27 @@ https://www.kff.org/womens-health-policy/dashboard/abortion-in-the-u-s-dashboard
 #
 
 ```{r, echo=FALSE, warning=FALSE}
-years <- c(1988, 2005:2017)
-year_subset <- abortion_data_UnS %>% 
+years <- c(2005:2017)
+year_subset <- abortion_data_U.S %>% 
   filter(year %in% years)
 
 TX_abortion_data <- year_subset %>% 
   filter(state == "TX") %>% 
-  select(Year= year, rate_lt20, rate_2024, rate_2529, rate_3034, rate_3539, rate_40plus, abortionslt20:abortions40plus)
+  select(Year= year, rate_lt15, rate_lt20, rate_2024, rate_2529, rate_3034, rate_3539, rate_40plus, case_lt15, case_lt20:case_40plus)
 
-old_col_names2 <- colnames(TX_abortion_data)
-# Replace the "abortions" prefix with "rate_"
-new_col_names2 <- gsub("abortions", "case_", old_col_names2)
-
-# Set the new row names for the data frame
-colnames(TX_abortion_data) <- new_col_names2
-
-```
-```{r}
-glimpse(TX_abortion_data)
+TX_abortion_data
 ```
 
-#
-Some discussion about Texas current situation:
- - Before Roe v. Wade was overturned, at least 50,000 Texans received abortions in the state each year.
+- Before Roe v. Wade was overturned, at least 50,000 Texans received abortions in the state each year.
    
-   - "Texas already had one of the most restrictive abortion laws in the country. After a law prohibiting abortions after about six weeks into a pregnancy took effect Sept. 1, 2021(now banned), the number of abortions statewide from September to December dropped by 46% compared with the same period in 2020, according to preliminary data from the Texas Health and Human Services Commission."
+   - Texas already had one of the most restrictive abortion laws in the country.
    
- - Here how is it look like as a graph
+- Here how  look like as a graph
 
-```{r , echo= FALSE}
+```{r , echo= FALSE, warning = FALSE}
 #line graph for all rate by year
 TX_abortion_data %>% ggplot(aes(x = Year)) + 
+  geom_line(aes(y=rate_lt15, color="Rate lt15")) +
   geom_line(aes(y=rate_lt20, color="Rate lt20")) + 
   geom_line(aes(y=rate_2024, color="Rate 2024")) +
   geom_line(aes(y=rate_2529, color="Rate 2529")) + 
@@ -292,13 +358,13 @@ TX_abortion_data %>% ggplot(aes(x = Year)) +
   geom_line(aes(y=rate_3539, color="Rate 3539")) + 
   geom_line(aes(y=rate_40plus, color="Rate 40+")) + 
   scale_color_manual(name="Rates",
-                     values=c("blue","red","green","purple","orange","black")) +
+                     values=c("navy","blue","red","green","purple","orange","black")) +
   labs(title="Rates by Year",
        x="Year",
        y="Rate")
 ```
 
-# Abortion Rates by Age Group in the US, 1988, 2005-2017
+# Abortion Rates by Age Group in Texas from 2005-2017
 
 ```{r , echo= FALSE, warning=FALSE}
 abortion_data_long <- TX_abortion_data %>%
@@ -306,14 +372,14 @@ abortion_data_long <- TX_abortion_data %>%
 
 ggplot(data = abortion_data_long, aes(x = Year, y = abortion_rate)) + 
   geom_bar(stat = "identity", fill = "darkcyan") +
-  labs(title = "Abortion Rates by Age Group in the US, 1988, 2005-2017",
+  labs(title = "Abortion Rates by Age Group in Texas, from 2005-2017",
        x = "Year",
        y = "Abortion Rate",
        fill = "Age Group") +
-  facet_wrap(~ age_group, scales = "free_y")
+  facet_wrap(~ age_group)
 ```
 
-# Abortion Case by Age Group in the US, 1988, 2005-2017
+# Abortion Case by Age Group in Texas from 2005-2017
 
 ```{r , echo= FALSE, warning=FALSE}
 abortion_data_long <- TX_abortion_data %>%
@@ -321,52 +387,51 @@ abortion_data_long <- TX_abortion_data %>%
 
 ggplot(data = abortion_data_long, aes(x = Year, y = abortion_case)) + 
   geom_bar(stat = "identity", fill = "darkcyan") +
-  labs(title = "Abortion Cases by Age Group in the US, 1988, 2005-2017",
+  labs(title = "Abortion Cases by Age Group in Texas from 2005-2017",
        x = "Year",
        y = "Abortion Cases",
        fill = "Age Group") +
-  facet_wrap(~ age_group, scales = "free_y")
+  facet_wrap(~ age_group)
+
 ```
 
-#
-- But the hardest thing to working on is data for all case that ages lower than 20.
+# 
 
-- Texas tops the nation in teens who give birth multiple times.
+- One other the possible reason for it is: Texas does not require sex education and has the strictest abortion law in the nation.
 
-- More than 1 in 6 teenagers who gave birth in Texas in 2020 already had a child.
+How about the abortion rate of teen in Texas? 
 
-- Here is the reason why: Texas does not require sex education and has the strictest abortion law in the nation.
+```{r,echo=FALSE}
+years_1 <- c(2005:2017)
 
-- Information was analysis by The Texas Tribune using data from the Centers for Disease Control and Prevention.
+year_subset_1 <- abortion_data_U.S %>% 
+  filter(year %in% years_1)
 
-- In the last decade, the state has been in the top five states for repeat teen birth rates.
+TX_teen_abortion_data <- year_subset_1 %>% 
+  filter(state == c("TX","US")) %>% 
+  select(state, Year= year, rate_1517, rate_1819)
 
-<a href = "https://www.texastribune.org/2022/05/09/texas-abortions-by-the-numbers/" style="color:pink;">
-  https://www.texastribune.org/2022/05/09/texas-abortions-by-the-numbers/
-</a> 
+TX_teen_abortion_data
 
-
-<a href = "https://www.texastribune.org/2022/02/21/texas-teenage-pregnancy-abortion/" style="color:pink;">
-  https://www.texastribune.org/2022/02/21/texas-teenage-pregnancy-abortion/
-</a>
+```
 
 
-#  Some summary for the data(correction in Jan. 13, 2023):
+```{r, echo=FALSE, warning=FALSE}
 
-- The vast majority of abortions occur during the first trimester of a pregnancy. In 2020, 93% of abortions occurred during the first trimester – that is, at or before 13 weeks of gestation, according to the CDC. An additional 6% occurred between 14 and 20 weeks of pregnancy, and 1% were performed at 21 weeks or more of gestation. These CDC figures include data from 40 states and New York City (but not the rest of New York).
+# Convert the data from wide format to long format
+TX_teen_abortion_data_long <- gather(TX_teen_abortion_data, age_group, rate, -Year, -state)
 
-- In the 46 states that reported data to the CDC in 2020, the majority of women who had abortions (57%) were in their 20s, while about three-in-ten (31%) were in their 30s. Teens ages 13 to 19 accounted for 8% of those who had abortions, while women in their 40s accounted for 4%.
+# Create the line plot
+TX_teen_abortion_data_long %>% ggplot(aes(x = Year, y = rate, color = age_group, linetype = state)) +
+  geom_line() +
+  labs(title = "Abortion rates for age groups 15-17 and 18-19 in TX and US",
+       x = "Year", y = "Rate", color = "Age group", linetype = "State") +
+  theme_minimal()
+```
 
-- The vast majority of women who had abortions in 2020 were unmarried (86%), while married women accounted for 14%, according to the CDC, which had data on this from 39 states and New York City (but not the rest of New York).
+#  Some summary for the data:
 
-- The reason why i finally using the data in 2020 to give the summary is because the rate change in between 2017- 2020 is not too much that we need to separate so i want to end with the newest data we can approach.
-
-Information collected in this article:
-
-<a href = "https://www.pewresearch.org/short-reads/2023/01/11/what-the-data-says-about-abortion-in-the-u-s-2/" style="color:pink;">
-  https://www.pewresearch.org/short-reads/2023/01/11/what-the-data-says-about-abortion-in-the-u-s-2/
-</a>
-
+After all we can conclude that over the time, government did a really good job in trying to decrease abortion rate across the country.
 
 
 
